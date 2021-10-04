@@ -6,7 +6,9 @@ import {
 import * as express from 'express';
 import * as cors from 'cors';
 import * as bodyParser from 'body-parser';
-import {updateBalance, getBalance, updatePrice, getPrice, getUSDTHoldings} from './cache/index';
+import {updateBalance, getBalance, updateUSDTHoldings, updatePrice, getPrice, getUSDTHoldings} from './Cache/index';
+import { Server } from "socket.io";
+import Controller, { updateAssets } from './Socket';
 
 const dotenv = require('dotenv');
 dotenv.config();
@@ -21,29 +23,40 @@ const binance = new Binance().options({
   verbose: true,
   test: true,
 });
-const app: Application = express();
+const app = express();
 
 const tokenList = ['BTC', 'EOS', 'ETH']
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 const updateInterval = 7000;
 
+const server = require('http').createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+app.locals.io = io;
+
 const handelBalance = async () => {
   const checkBalance = async () => {
     try {
-      binance.balance((error, balances) => {
+      binance.balance(async (error, balances) => {
         if (error) return console.error(error);
-        updateBalance(balances);
+        await updateBalance(balances);
+        const assets = await updateUSDTHoldings();
+        updateAssets(app.locals.io, assets);
       })
 
     } catch (error) {
       console.error(error.message);
     }
   }
-  checkBalance();
+  // checkBalance();
   setInterval(checkBalance, updateInterval)
 }
 
@@ -80,29 +93,57 @@ const checkEMA = async () => {
   setInterval(checkPrices, updateInterval)
 }
 
+
+// server.listen(8000)
 (async ()=> {
   await handelBalance();
   await handlePrices();
   await checkEMA();
+  await Controller(io);
 })();
 
-
+const buyOrder = () => {}
 app.get('/get-holdings-USDT', (_req: Request,res:Response) => {
   const tempHoldingsUsdt = getUSDTHoldings();
-  res.status(200).json({
-    'status': 'OK',
-    'message': 'ok',
-    'data': tempHoldingsUsdt,
-  });
+  if(tempHoldingsUsdt) {
+    res.status(200).json({
+      'status': 'OK',
+      'message': 'ok',
+      'data': tempHoldingsUsdt,
+      'time': Date.now(),
+    });
+  }
 });
 
 
 app.get('/get-balance', (_req: Request,res:Response) => {
-  const currentBalance = getBalance();
+  try {
+    const currentBalance = getBalance();
+    res.status(200).json({
+      'status': 'OK',
+      'message': 'ok',
+      'data': currentBalance,
+    });
+  } catch (error: any) {
+    console.error(error.message);
+  }
+});
+
+app.get('/get-prices', (_req: Request,res:Response) => {
+  const prices = getPrice();
   res.status(200).json({
     'status': 'OK',
     'message': 'ok',
-    'data': currentBalance,
+    'data': prices,
+  });
+});
+
+app.get('/get-prices', (_req: Request,res:Response) => {
+  const prices = getPrice();
+  res.status(200).json({
+    'status': 'OK',
+    'message': 'ok',
+    'data': prices,
   });
 });
 
@@ -138,6 +179,6 @@ app.get('/get-trade-history', (req: Request, res: Response) => {
 
 const port = process.env.PORT ?? 8080;
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Listening on http://localhost:${port}`);
 });

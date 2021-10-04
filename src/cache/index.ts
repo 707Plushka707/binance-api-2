@@ -10,14 +10,14 @@ let holdingPricesUSDT: PriceUSDT[];
 const handleBalances = (balances: BalanceCache): BalanceCache => {
   let positiveBalance = {} as BalanceCache;
   Object.keys(balances).forEach((keys: string) => {
-    if (parseInt(balances[keys].available) > 0.01 || parseInt(balances[keys].onOrder) > 0.01) {
+    if (parseFloat(balances[keys].available) > 0.001 || parseFloat(balances[keys].onOrder) > 0.001) {
       positiveBalance[keys] = balances[keys]
     }
   });
   return positiveBalance; 
 };
 
-const updateUSDTHoldings = () => {
+export const updateUSDTHoldings = () => {
   const tempHolding = [];
   Object.keys(balanceCache).map((key) => {
     Object.keys(pricesCache).map((keyP) => {
@@ -25,13 +25,15 @@ const updateUSDTHoldings = () => {
         tempHolding.push({
           symbol: key,
           price: pricesCache[keyP],
-          holdingValue: (parseInt(pricesCache[keyP]) * parseInt(balanceCache[key].available)).toFixed(2)
+          balance: parseFloat(balanceCache[key].available).toFixed(2),
+          assetValue: (parseFloat(pricesCache[keyP]) * parseFloat(balanceCache[key].available)).toFixed(2)
         })
       }
     });
   });
   holdingPricesUSDT = [...tempHolding];
   console.log("Price Updated.")
+  return holdingPricesUSDT;
 }
 
 export const getUSDTHoldings = () => holdingPricesUSDT;
@@ -63,4 +65,5 @@ export default {
   updatePrice,
   getBalance,
   getUSDTHoldings,
+  updateUSDTHoldings,
 };
