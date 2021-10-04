@@ -10,5 +10,6 @@ export type BalanceCache = {
 export type PriceUSDT = {
   symbol: string,
   price: string,
-  holdingValue: string,
+  balance: number,
+  assetValue: number,
 }

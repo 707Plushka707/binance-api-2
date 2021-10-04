@@ -20,6 +20,7 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "node-binance-api": "^0.12.5",
+    "socket.io": "^4.2.0",
     "trading-indicator": "^1.0.4-beta",
     "ts-node-dev": "^1.1.8"
   }
